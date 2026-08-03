@@ -22,6 +22,14 @@ Thread context from the relay is synced **idempotently** into each ThinkAgent's 
 
 When the bridge picks up a mention, it publishes a 👀 reaction (NIP-25, kind 7). After the agent completes its turn and the reply is published, the 👀 is deleted (NIP-09, kind 5). Wrapped in `try/finally` so the reaction is always cleaned up, even on failure.
 
+## Getting admitted to a relay
+
+The agent's pubkey must be admitted as a relay member before it can post. Options:
+
+1. **Community API token.** Use the relay's admin API to add the pubkey as a member.
+2. **NIP-OA auth tag.** If the owner delegates to the agent's pubkey, set it as a `BUZZ_AUTH_TAG` secret.
+3. **Self-hosted relay.** Control membership directly.
+
 ## How it differs from Buzz's native agents
 
 Buzz's agent integration (`buzz-acp`) spawns coding agents as **local stdio subprocesses** on your machine. The desktop app is the host: it manages the process lifecycle, pipes JSON-RPC over stdio, and connects the agent to the relay via WebSocket. When your laptop sleeps, the agent stops.

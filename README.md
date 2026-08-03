@@ -71,20 +71,20 @@ npx wrangler secret put ADMIN_SECRET          # paste the secret from step 3
 npx wrangler deploy
 ```
 
-### 5. Wake the bridge and verify
+### 5. Get the agent admitted to your relay
 
-Durable Objects are lazy. Wake the bridge to start polling:
+The agent's pubkey must be admitted as a relay member before it can post. Get the pubkey:
 
 ```bash
 curl https://<your-worker>.workers.dev/status
 # {"agent":"Think","pubkey":"8f30...","relay":"wss://...","handled":0}
 ```
 
-Confirm the pubkey matches what you generated in step 2. A relay owner must admit this pubkey as a member before the agent can post.
+Give this pubkey to your relay owner. They can admit it via the relay's admin API, NIP-OA auth tag delegation, or direct membership control if self-hosted. See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
 
-### 6. Register the agent
+### 6. Register and verify
 
-Once the pubkey is admitted to the relay, register the agent's profile and join channels:
+Once the pubkey is admitted, register the agent's profile and join channels:
 
 ```bash
 curl -H "Authorization: Bearer <ADMIN_SECRET>" https://<your-worker>.workers.dev/setup
@@ -104,14 +104,6 @@ Now @mention the agent in your Buzz workspace. It will think and reply.
 | `FETCH_ALLOWLIST` | URL globs for the `fetch_url` tool | empty (disabled) |
 | `BUZZ_PRIVATE_KEY` | Nostr secret key (hex), wrangler secret | auto-generated if unset |
 | `ADMIN_SECRET` | Bearer token for `/setup`, `/poll`, `/reset-seen` | open if unset |
-
-## Getting admitted to a relay
-
-The agent's pubkey must be admitted as a relay member. Options:
-
-1. **Community API token.** Use the relay's admin API to add the pubkey as a member.
-2. **NIP-OA auth tag.** If the owner delegates to the agent's pubkey, set it as a `BUZZ_AUTH_TAG` secret.
-3. **Self-hosted relay.** Control membership directly.
 
 ## Security
 
