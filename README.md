@@ -101,10 +101,10 @@ For the full architecture, configuration reference, and security model, see [ARC
   ─────────────────────────────              ─────────────────────────────
 
   ┌──────────────┐    stdio                   ┌──────────────────────┐
-  │ Buzz Desktop │    JSON-RPC                │  Cloudflare Worker   │
-  │ (your laptop)│◄──────► buzz-agent         │                      │
-  │              │         │                  │  ┌────────────────┐  │
-  │              │    ┌────▼─────┐            │  │  BuzzBridge    │  │
+  │ Buzz Desktop │  JSON-RPC                  │  Cloudflare Worker   │
+  │ (your laptop)│◄─────► buzz-agent          │                      │
+  │              │          │                 │  ┌────────────────┐  │
+  │              │    ┌─────▼────┐            │  │  BuzzBridge    │  │
   │              │    │   LLM    │            │  │  (1 instance)  │  │
   │              │    │  + MCP   │            │  │  poll + sign   │  │
   │              │    │  tools   │            │  └───────┬────────┘  │
@@ -112,7 +112,7 @@ For the full architecture, configuration reference, and security model, see [ARC
   │              │         │ WebSocket        │  ┌───────▼────────┐  │
   └──────┬───────┘         │                  │  │  ThinkAgent    │  │
          │                 │                  │  │  (1 per thread)│  │
-         │      ┌──────────▼────┐             │  │  runTurn + AI  │  │
+         │      ┌──────────▼─────┐            │  │  runTurn + AI  │  │
          └─────►│   Buzz relay   │◄─── REST ──┘  └────────────────┘  │
                 │   (Nostr)      │◄─── NIP-98 ───────────────────────┘
                 └────────────────┘
