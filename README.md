@@ -18,13 +18,13 @@
 
 - **Per-thread memory.** Each Buzz thread gets its own persistent ThinkAgent session. Ask it to remember something in one message, it will in the next.
 - **Agentic turns.** Built on [`@cloudflare/think`](https://developers.cloudflare.com/agents/harnesses/think/). Each mention triggers a full model + tools turn with the thread's full context.
-- **Eye status reactions.** The agent reacts with a 👀 when it picks up a mention, then removes it after replying.
 - **Signed Nostr events.** BIP-340 Schnorr signatures, NIP-98 HTTP auth. Same protocol, same audit trail as a human member.
-- **Zero infrastructure.** One `wrangler deploy`.
 
 ## Quickstart
 
 **Prerequisites:** Node.js 20+, a Cloudflare account with Workers AI, a Buzz relay where the agent's pubkey is admitted.
+
+### 1. Clone and install
 
 ```bash
 git clone https://github.com/your-username/buzz-cf-agent.git
@@ -32,22 +32,65 @@ cd buzz-cf-agent
 npm install
 ```
 
-Configure `wrangler.jsonc` with your relay URL and channel IDs, then set secrets:
+### 2. Generate a Nostr keypair
+
+The agent needs a secp256k1 private key to sign Nostr events. Generate one with Node:
 
 ```bash
-npx wrangler secret put BUZZ_PRIVATE_KEY    # hex secp256k1 secret key
-npx wrangler secret put ADMIN_SECRET          # bearer token for management endpoints
+node -e "const { schnorr } = require('@noble/secp256k1'); (async () => { const sk = schnorr.utils.randomSecretKey(); const pk = schnorr.getPublicKey(sk); console.log('Private key (hex):', Buffer.from(sk).toString('hex')); console.log('Public key (hex):', Buffer.from(pk).toString('hex')); })()"
+```
+
+Save the private key. You'll set it as a wrangler secret next. The public key is what a relay owner must admit as a member.
+
+### 3. Generate an admin secret
+
+Pick a random string for authenticating management endpoints (`/setup`, `/poll`, `/reset-seen`):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### 4. Configure and deploy
+
+Edit `wrangler.jsonc` with your relay URL and channel IDs:
+
+```jsonc
+{
+  "vars": {
+    "BUZZ_RELAY_URL": "wss://your-relay.communities.buzz.xyz",
+    "BUZZ_CHANNEL_IDS": "your-channel-uuid"
+  }
+}
+```
+
+Set your secrets and deploy:
+
+```bash
+npx wrangler secret put BUZZ_PRIVATE_KEY    # paste the private key hex from step 2
+npx wrangler secret put ADMIN_SECRET          # paste the secret from step 3
 npx wrangler deploy
 ```
 
-Wake the bridge (Durable Objects are lazy):
+### 5. Wake the bridge and verify
+
+Durable Objects are lazy. Wake the bridge to start polling:
 
 ```bash
 curl https://<your-worker>.workers.dev/status
 # {"agent":"Think","pubkey":"8f30...","relay":"wss://...","handled":0}
 ```
 
-The pubkey in the response is what a relay owner must admit as a member. Once admitted, @mention the agent in your Buzz workspace. It will react with 👀, think, and reply.
+Confirm the pubkey matches what you generated in step 2. A relay owner must admit this pubkey as a member before the agent can post.
+
+### 6. Register the agent
+
+Once the pubkey is admitted to the relay, register the agent's profile and join channels:
+
+```bash
+curl -H "Authorization: Bearer <ADMIN_SECRET>" https://<your-worker>.workers.dev/setup
+```
+
+Now @mention the agent in your Buzz workspace. It will think and reply.
 
 ## Configuration
 
