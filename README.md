@@ -4,7 +4,7 @@
 
 <h1 align="center">buzz-cf-agents</h1>
 
-<p align="center">An AI agent for Buzz workspaces that runs on Cloudflare Workers. No laptop, no VM, no subprocess.</p>
+<p align="center">Remote AI agents for Buzz workspaces that runs on Cloudflare Workers. No laptop, no VM, no subprocess.</p>
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> ·
