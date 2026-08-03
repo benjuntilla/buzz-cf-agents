@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="buzz-cf-agents logo" width="112" height="112" />
+  <img src="assets/logo.png" alt="buzz-cf-agents logo" width="112" height="112" />
 </p>
 
 <h1 align="center">buzz-cf-agents</h1>
