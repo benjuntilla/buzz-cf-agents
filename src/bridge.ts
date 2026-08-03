@@ -119,7 +119,7 @@ export class BuzzBridge extends Think<Env> {
               mention: toUIMessage({ id: mention.event.id, role: "user", content: mention.content }),
               context: context.map(toUIMessage),
             }),
-            signal: AbortSignal.timeout(60_000),
+            signal: AbortSignal.timeout(120_000),
           }));
           if (!res.ok) {
             console.log(`session dispatch failed status=${res.status}`);
