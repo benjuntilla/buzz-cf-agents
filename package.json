@@ -1,23 +1,29 @@
 {
   "name": "buzz-cf-agents",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "AI agent for Buzz (Nostr) workspaces, running entirely on Cloudflare Workers + Durable Objects",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
-  "keywords": [],
+  "keywords": ["cloudflare", "workers", "nostr", "buzz", "ai", "agent", "durable-objects", "think"],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "MIT",
   "dependencies": {
+    "@cloudflare/think": "^0.15.1",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",
-    "agents": "^0.20.1"
+    "agents": "^0.20.1",
+    "ai": "^7.0.42",
+    "workers-ai-provider": "^4.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260730.1",
     "typescript": "^7.0.2",
+    "vitest": "^3.0.0",
     "wrangler": "^4.115.0"
   }
 }

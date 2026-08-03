@@ -16,6 +16,8 @@ export type Unsigned = Omit<NostrEvent, "id" | "sig">;
 
 export const KIND = {
   CHAT: 9,
+  REACTION: 7, // NIP-25
+  DELETION: 5, // NIP-09
   AUTH: 22242, // NIP-42
   HTTP_AUTH: 27235, // NIP-98
 } as const;
@@ -67,96 +69,21 @@ export function nip98Header(sk: Uint8Array, url: string, method: string): string
     tags: [
       ["u", url],
       ["method", method.toUpperCase()],
+      ["nonce", crypto.randomUUID()],
     ],
   });
   // btoa is available in Workers; JSON is ASCII-safe here.
   return `Nostr ${btoa(JSON.stringify(ev))}`;
 }
 
-export type AuthProbe = {
-  ok: boolean;
-  challenge: string | null;
-  /** Raw relay frames, for diagnosing membership vs signature failures. */
-  transcript: string[];
-  reason: string | null;
-};
-
-/**
- * Open a WebSocket to a Nostr relay, complete the NIP-42 challenge, and report
- * the outcome. Diagnoses the difference between a crypto failure and an
- * authorization failure ("restricted: not a relay member").
- */
-export async function probeAuth(
-  relayUrl: string,
-  sk: Uint8Array,
-  authTag?: string[] | null,
-  timeoutMs = 8000
-): Promise<AuthProbe> {
-  const httpUrl = relayUrl.replace(/^ws/, "http");
-  const resp = await fetch(httpUrl, { headers: { Upgrade: "websocket" } });
-  const ws = resp.webSocket;
-  if (!ws) {
-    return {
-      ok: false,
-      challenge: null,
-      transcript: [`no webSocket on response (status ${resp.status})`],
-      reason: "upgrade-failed",
-    };
+/** Fetch with retry on 526 (orange-to-orange Cloudflare TLS issue). */
+async function fetchRetry(url: string, init: RequestInit, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
+    const resp = await fetch(url, init);
+    if (resp.status !== 526) return resp;
+    await new Promise((r) => setTimeout(r, 2000 * (i + 1)));
   }
-  ws.accept();
-
-  const transcript: string[] = [];
-  let challenge: string | null = null;
-  let ok = false;
-  let reason: string | null = null;
-
-  await new Promise<void>((resolve) => {
-    const timer = setTimeout(() => resolve(), timeoutMs);
-    const finish = () => {
-      clearTimeout(timer);
-      resolve();
-    };
-
-    ws.addEventListener("message", (ev: MessageEvent) => {
-      const raw = String(ev.data);
-      transcript.push(`<< ${raw.slice(0, 300)}`);
-      let m: unknown[];
-      try {
-        m = JSON.parse(raw);
-      } catch {
-        return;
-      }
-      if (m[0] === "AUTH" && typeof m[1] === "string") {
-        challenge = m[1];
-        const tags: string[][] = [
-          ["relay", relayUrl],
-          ["challenge", challenge],
-        ];
-        if (authTag && authTag.length) tags.push(authTag);
-        const auth = finalizeEvent(sk, { kind: KIND.AUTH, tags });
-        transcript.push(`>> AUTH kind:${KIND.AUTH}${authTag ? " (with auth tag)" : ""}`);
-        ws.send(JSON.stringify(["AUTH", auth]));
-      } else if (m[0] === "OK") {
-        ok = m[2] === true;
-        reason = typeof m[3] === "string" && m[3] ? m[3] : null;
-        finish();
-      } else if (m[0] === "CLOSED" || m[0] === "NOTICE") {
-        if (!reason && typeof m[m.length - 1] === "string") reason = String(m[m.length - 1]);
-      }
-    });
-    ws.addEventListener("close", finish);
-    ws.addEventListener("error", () => {
-      transcript.push("ERROR");
-      finish();
-    });
-  });
-
-  try {
-    ws.close();
-  } catch {
-    /* already closed */
-  }
-  return { ok, challenge, transcript, reason };
+  return fetch(url, init);
 }
 
 /** Query stored events over the relay's REST bridge using NIP-98 auth. */
@@ -166,13 +93,13 @@ export async function queryEvents(
   filter: Record<string, unknown>
 ): Promise<{ ok: boolean; status: number; events: NostrEvent[]; body?: string }> {
   const url = `${relayHttpUrl.replace(/\/$/, "")}/query`;
-  const resp = await fetch(url, {
+  const resp = await fetchRetry(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: nip98Header(sk, url, "POST"),
     },
-    body: JSON.stringify(filter),
+    body: JSON.stringify([filter]),
   });
   if (!resp.ok) {
     return { ok: false, status: resp.status, events: [], body: (await resp.text()).slice(0, 400) };
@@ -189,7 +116,7 @@ export async function publishEvent(
   event: NostrEvent
 ): Promise<{ ok: boolean; status: number; body: string }> {
   const url = `${relayHttpUrl.replace(/\/$/, "")}/events`;
-  const resp = await fetch(url, {
+  const resp = await fetchRetry(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -200,7 +127,9 @@ export async function publishEvent(
   return { ok: resp.ok, status: resp.status, body: (await resp.text()).slice(0, 400) };
 }
 
-/** Build a threaded reply to a Buzz chat message (NIP-29 `h` channel tag). */
+/** Build a threaded reply matching Buzz Desktop's convention: a single #e tag
+ *  with "reply" marker that always points to the thread root (not the immediate
+ *  parent). Top-level mentions have no #e tags, so the replied-to event IS the root. */
 export function buildReply(
   sk: Uint8Array,
   parent: NostrEvent,
@@ -209,7 +138,39 @@ export function buildReply(
   const channel = parent.tags.find((t) => t[0] === "h")?.[1];
   const tags: string[][] = [];
   if (channel) tags.push(["h", channel]);
-  tags.push(["e", parent.id, "", "reply"]);
+
+  // Find the thread root: check parent's #e tags.
+  // Buzz Desktop uses a single #e tag with "reply" marker pointing to the root.
+  // If parent has no #e tags, the parent itself is the root.
+  const parentETag = parent.tags.find((t) => t[0] === "e");
+  const rootId = parentETag
+    ? parentETag[1]                       // parent's e tag points to the root
+    : parent.id;                          // parent IS the root
+
+  tags.push(["e", rootId, "", "reply"]);
   tags.push(["p", parent.pubkey]);
   return finalizeEvent(sk, { kind: KIND.CHAT, tags, content });
+}
+
+/** Build a NIP-25 reaction event (kind 7) targeting a specific message. */
+export function buildReaction(
+  sk: Uint8Array,
+  target: NostrEvent,
+  content: string,
+): NostrEvent {
+  const tags: string[][] = [
+    ["e", target.id, "", "reaction"],
+    ["p", target.pubkey],
+  ];
+  const channel = target.tags.find((t) => t[0] === "h")?.[1];
+  if (channel) tags.push(["h", channel]);
+  return finalizeEvent(sk, { kind: KIND.REACTION, tags, content });
+}
+
+/** Build a NIP-09 deletion event (kind 5) targeting a specific event id. */
+export function buildDeletion(
+  sk: Uint8Array,
+  targetId: string,
+): NostrEvent {
+  return finalizeEvent(sk, { kind: KIND.DELETION, tags: [["e", targetId]], content: "" });
 }

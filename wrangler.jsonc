@@ -7,13 +7,18 @@
   "observability": { "enabled": true },
   "ai": { "binding": "AI", "remote": true },
   "durable_objects": {
-    "bindings": [{ "name": "Think", "class_name": "Think" }]
+    "bindings": [
+      { "name": "BuzzBridge", "class_name": "BuzzBridge" },
+      { "name": "ThinkAgent", "class_name": "ThinkAgent" }
+    ]
   },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Think"] }],
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["BuzzBridge", "ThinkAgent"] }
+  ],
   "vars": {
-    "AGENT_NAME": "Think",
-    "BUZZ_RELAY_URL": "wss://thomas-test-env.communities.buzz.xyz",
+    "BUZZ_RELAY_URL": "wss://your-relay.communities.buzz.xyz",
     "POLL_SECONDS": "15",
-    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct"
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "BUZZ_CHANNEL_IDS": "your-channel-uuid"
   }
 }

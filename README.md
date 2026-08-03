@@ -1,113 +1,127 @@
-# buzz-cf-agents — "Think"
+# buzz-cf-agent
 
-A [Buzz](https://github.com/block/buzz) agent that lives entirely in a Cloudflare
-Durable Object. No laptop, no VM, no ACP subprocess.
+An AI agent for [Buzz](https://github.com/block/buzz) workspaces that runs entirely on Cloudflare Workers. No laptop, no VM, no local subprocess — just Durable Objects and a relay.
 
-Buzz's own harness (`buzz-acp`) spawns agents as **local stdio subprocesses**, so a
-Worker can never be a harnessed agent. Instead this connects as a plain Nostr client:
-hold a keypair, authenticate, subscribe to mentions, publish signed events. At the
-protocol level that is indistinguishable from a harnessed agent — same scoping, same
-audit trail, same "member" status.
+## How it differs from Buzz's native agents
 
-## Status: works end to end except relay membership
+Buzz's agent integration (`buzz-acp`) spawns coding agents as **local stdio subprocesses** on your machine. The desktop app is the host: it manages the process lifecycle, pipes JSON-RPC over stdio, and connects the agent to the relay via WebSocket. When your laptop sleeps, the agent stops.
 
-Verified against a real hosted Buzz relay (`wss://<community>.communities.buzz.xyz`):
-
-| Step | Result |
-|---|---|
-| BIP-340 Schnorr signing in Workers (`@noble/curves`) | ✅ sign + verify + tamper-detect |
-| NIP-42 auth handshake | ✅ challenge received, signature **accepted** |
-| NIP-98 HTTP auth on REST bridge | ✅ reached app layer |
-| Plain HTTPS subrequest, deployed Worker → relay | ✅ `200` |
-| **WebSocket upgrade, deployed Worker → relay** | ❌ **`526`** (see below) |
-| Relay authorization | ❌ `403 relay_membership_required` |
-
-The relay's verdict on our signed auth event was `restricted: not a relay member` —
-an **authorization** failure, not a crypto one. Everything up to the permission check
-works; the agent's pubkey simply has to be admitted.
-
-### The 526 finding
-
-A **deployed** Worker cannot open a WebSocket to a Cloudflare-fronted Buzz relay:
-
-```json
-"reachability": { "health": "200", "healthUpgrade": "526 ws=no" }
-```
-
-Same URL, same TLS — plain HTTPS returns `200`, the `Upgrade: websocket` request
-returns `526` (invalid origin certificate). `wrangler dev` succeeds because the
-subrequest leaves your machine directly. Hosted `*.communities.buzz.xyz` sits behind
-Cloudflare, so a Worker subrequest is orange-to-orange and the upgrade fails.
-
-**Consequence:** on Workers, the REST/poll transport is not merely the cheaper
-option — against a Cloudflare-hosted relay it is the *only* one that works. That
-happens to coincide with the right design anyway, because outbound WebSockets
-[cannot hibernate](https://github.com/cloudflare/workerd/issues/4864) and would pin
-the Durable Object in memory. A self-hosted relay not behind Cloudflare can use
-either transport.
-
-## Design
+This project takes a different bet: the agent lives **on Cloudflare**, not on your laptop. It polls the relay on an alarm, runs an agentic turn per mention, and signs Nostr events back. It's always on, costs nothing when idle, and never needs a human's machine to stay alive.
 
 ```
-Buzz relay ──REST /query (NIP-98, polled)──> Think (Agent / Durable Object)
-           <──REST /events (signed kind 9)──  • keypair generated in the DO
-                                              • SQLite: identity, seen-event set
-                                              • scheduleEvery() → hibernates between polls
+  Buzz native agents (buzz-acp)              buzz-cf-agent (this project)
+  ─────────────────────────────              ─────────────────────────────
+
+  ┌─────────────┐    stdio                   ┌──────────────────────┐
+  │ Buzz Desktop │    JSON-RPC               │  Cloudflare Worker   │
+  │ (your laptop)│◄──────► buzz-agent        │                      │
+  │              │         │                 │  ┌────────────────┐  │
+  │              │    ┌────▼─────┐            │  │  BuzzBridge    │  │
+  │              │    │   LLM    │            │  │  (1 instance)  │  │
+  │              │    │  + MCP   │            │  │  poll + sign   │  │
+  │              │    │  tools   │            │  └───────┬────────┘  │
+  │              │    └────┬─────┘            │          │ dispatch  │
+  │              │         │ WebSocket        │  ┌───────▼────────┐  │
+  └──────┬───────┘         │                  │  │  ThinkAgent    │  │
+         │                 │                  │  │  (1 per thread)│  │
+         │      ┌──────────▼────┐              │  │  runTurn + AI │  │
+         └─────►│   Buzz relay   │◄─── REST ───┘  └───────────────┘  │
+                │   (Nostr)      │◄─── NIP-98 ──────────────────────┘
+                └────────────────┘
+
+  Agent dies when laptop sleeps          Agent is always on, costs nothing idle
+  Full filesystem + shell access         Bounded tools (fetch_url with allowlist)
+  WebSocket to relay                      REST polling (Workers can't open WS)
+  Desktop app manages lifecycle           Durable Objects manage lifecycle
 ```
 
-- **Identity never leaves the DO.** The secret key is generated on first boot and
-  written to DO SQLite; only the public key is ever exposed. No key in env vars, no
-  key in logs, no key in a sandbox. Set `BUZZ_PRIVATE_KEY` only if you must use an
-  externally-issued identity.
-- **Hibernation-friendly.** `scheduleEvery(POLL_SECONDS, "poll")` is idempotent and
-  safe to call from `onStart()`, so the DO sleeps between polls instead of holding a
-  connection open.
-- **Replay-safe.** A `seen` table de-duplicates events across restarts and overlapping
-  poll windows.
+At the protocol level both approaches are identical: signed Nostr events, NIP-98 auth, same audit trail, same member status. The difference is where the process lives and how it reaches the relay.
 
-## Setup
+## Features
+
+- **Per-thread memory.** Each Buzz thread gets its own persistent ThinkAgent session. Ask it to remember something in one message, it will in the next.
+- **Agentic turns.** Built on [`@cloudflare/think`](https://developers.cloudflare.com/agents/harnesses/think/) — each mention triggers a full model + tools turn with the thread's full context.
+- **👀 status reactions.** The agent reacts with 👀 when it picks up a mention, then removes it after replying.
+- **Signed Nostr events.** BIP-340 Schnorr signatures, NIP-98 HTTP auth. Indistinguishable from a human member at the protocol level.
+- **Zero infrastructure.** One `wrangler deploy` and you're done.
+
+## Quickstart
+
+**Prerequisites:** Node.js 20+, a Cloudflare account with Workers AI, a Buzz relay where the agent's pubkey is admitted.
 
 ```bash
+git clone https://github.com/your-username/buzz-cf-agent.git
+cd buzz-cf-agent
 npm install
-npx wrangler deploy
-curl https://<your-worker>.workers.dev/status
 ```
 
-`/status` reports the agent's pubkey plus a live authorization verdict and relay
-reachability — that pubkey is what an owner must admit to the relay.
-
-Config lives in `wrangler.jsonc` (`BUZZ_RELAY_URL`, `POLL_SECONDS`, `AGENT_NAME`).
-Optional secrets:
+Configure `wrangler.jsonc` with your relay URL and channel IDs, then set secrets:
 
 ```bash
-npx wrangler secret put BUZZ_AUTH_TAG       # NIP-OA delegation tag, if issued
+npx wrangler secret put BUZZ_PRIVATE_KEY    # hex-encoded secp256k1 secret key
+npx wrangler secret put ADMIN_SECRET          # bearer token for management endpoints
+npx wrangler deploy
 ```
 
-Workers AI is configured as the `AI` binding in `wrangler.jsonc` and uses the model in
-`AI_MODEL` (currently `@cf/meta/llama-3.1-8b-instruct`). The binding is remote so local
-`wrangler dev` can exercise the real Workers AI account rather than a local simulator.
+Wake the bridge (Durable Objects are lazy):
 
-`nodejs_compat` is required — the `agents` package imports `path`.
+```bash
+curl https://<your-worker>.workers.dev/status
+# → {"agent":"Think","pubkey":"8f30...","relay":"wss://...","handled":0}
+```
+
+The pubkey in the response is what a relay owner must admit as a member. Once admitted, `@mention` the agent in your Buzz workspace — it will react with 👊, think, and reply.
+
+## Architecture
+
+| Component | File | Role |
+|---|---|---|
+| Bridge | `src/bridge.ts` | Owns the Nostr identity, polls for mentions on an alarm, dispatches to ThinkAgent, signs and publishes replies. Never calls a model. |
+| Agent | `src/session.ts` | One instance per thread root. Runs `runTurn({ mode: "wait" })` with tools and persistent per-thread memory. |
+| Buzz logic | `src/buzz.ts` | Identity, polling, replies, thread context, reactions, seen-event cleanup. |
+| Nostr | `src/nostr.ts` | BIP-340 signing, NIP-98 auth, event building, relay queries, signature verification. No Cloudflare deps — reusable as a standalone package. |
+| Entry | `src/index.ts` | Routes HTTP to BuzzBridge; falls through to `routeAgentRequest`. |
+
+### Why REST polling instead of WebSocket?
+
+Deployed Workers cannot open WebSockets to Cloudflare-hosted relays (526 on upgrade). Even if they could, outbound WebSockets would pin the Durable Object in memory and defeat hibernation. REST polling via `setAlarm` is the correct design — the bridge sleeps between polls, costing nothing when idle. ThinkAgent instances are lazy, created on first dispatch and only awake to run a turn.
+
+### Per-thread memory
+
+Thread context from the relay is synced **idempotently** into each ThinkAgent's persistent transcript via `addMessages`, keyed by Nostr event id. Re-syncing the same messages across polls is a no-op. The agent's own replies are never re-synced. Each thread accumulates durable conversation memory with Think's compaction handling long threads.
+
+### 👀 Reaction status
+
+When the bridge picks up a mention, it publishes a 👀 reaction (NIP-25, kind 7). After the agent completes its turn and the reply is published, the 👀 is deleted (NIP-09, kind 5). Wrapped in `try/finally` so the reaction is always cleaned up, even on failure.
+
+## Configuration
+
+| Variable | Description | Default |
+|---|---|---|
+| `BUZZ_RELAY_URL` | Relay WebSocket URL (`wss://...`) | — |
+| `BUZZ_CHANNEL_IDS` | Comma-separated channel UUIDs to join | — |
+| `POLL_SECONDS` | Poll interval in seconds | `15` |
+| `AI_MODEL` | Workers AI model ID | `@cf/google/gemma-4-26b-a4b-it` |
+| `AGENT_NAME` | Display name in Buzz | `Think` |
+| `FETCH_ALLOWLIST` | Comma-separated URL globs for the `fetch_url` tool | _(empty — fetch disabled)_ |
+| `BUZZ_PRIVATE_KEY` | Agent's Nostr secret key (hex) — wrangler secret | auto-generated if unset |
+| `ADMIN_SECRET` | Bearer token for `/setup`, `/poll`, `/reset-seen` | _(open if unset)_ |
 
 ## Getting admitted to a relay
 
-The desktop app mints agent keypairs itself and does not export them; "Share" exports
-a persona pack, not credentials. The channel-member search only resolves *existing*
-relay members, so there is no invite-by-pubkey in the UI. Admitting an
-externally-held pubkey needs one of:
+The agent's pubkey must be admitted as a relay member. Options:
 
-1. the community **API token** (`buzz_…`, from the hosted dashboard) — visible in
-   Buzz Desktop under community settings;
-2. a **NIP-OA `auth_tag`** issued by the owner, delegating to this agent's pubkey
-   (this is how desktop-managed agents are authorized — set it as `BUZZ_AUTH_TAG`);
-3. a **self-hosted relay**, where you control membership directly.
+1. **Community API token** — use the relay's admin API to add the pubkey as a member.
+2. **NIP-OA auth tag** — if the owner delegates to the agent's pubkey, set it as a `BUZZ_AUTH_TAG` secret.
+3. **Self-hosted relay** — control membership directly.
 
-## Notes for reuse
+## Security
 
-`src/nostr.ts` has no Cloudflare dependencies — events, NIP-42, NIP-98, filters, and
-signing. Existing Nostr libraries assume Node or browser globals; this is
-Workers-native and is the piece most worth extracting into its own package.
+- Incoming relay events are **signature-verified** before processing.
+- Management endpoints are **auth-gated** with a bearer token.
+- The `fetch_url` tool is **disabled by default** — opt in via `FETCH_ALLOWLIST`.
+- The `seen` table auto-cleans entries older than 7 days.
 
-Use `@noble/*` v2 subpaths (`/secp256k1.js`, `/sha2.js`) and
-`schnorr.utils.randomSecretKey()` — the v1 paths and `randomPrivateKey()` fail the
-esbuild step.
+## License
+
+[MIT](LICENSE)
