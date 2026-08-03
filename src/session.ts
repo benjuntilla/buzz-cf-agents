@@ -41,9 +41,7 @@ export class ThinkAgent extends Think<Env> {
 
 You have full memory of all messages in this thread. When a user shares a fact (like a favorite number, color, or preference), remember it and recall it when they ask later.
 
-Be concise and useful. Plain text only, no markdown headers, no JSON, no function-call syntax in your text output. If you want to use a tool, invoke it properly — never write tool-call JSON as text.
-
-You have a fetch_url tool to read web pages that users link; use it when a message references a URL and reading it would improve your reply.`;
+Be concise and useful. Plain text only, no markdown headers, no JSON, no function-call syntax in your text output. If you want to use a tool, invoke it properly, never write tool-call JSON as text.`;
   }
 
   getTools() {
@@ -51,6 +49,7 @@ You have a fetch_url tool to read web pages that users link; use it when a messa
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    if (allowlist.length === 0) return {} as Record<string, never>;
     return createFetchTools({ allowlist });
   }
 
