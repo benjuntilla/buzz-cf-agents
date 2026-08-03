@@ -67,7 +67,9 @@ The agent's pubkey must be admitted as a relay member. Options:
 
 ## Architecture
 
-For the full architecture, component breakdown, and comparison with Buzz's native `buzz-acp` agents, see [ARCHITECTURE.md](ARCHITECTURE.md).
+Buzz's native agents (`buzz-acp`) run as local stdio subprocesses on your laptop — when it sleeps, they die. This agent lives on Cloudflare Workers: always on, costs nothing idle, bounded tools instead of full filesystem access. Same Nostr protocol, same audit trail, different host.
+
+For the full architecture and component breakdown, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
   Buzz native agents (buzz-acp)              buzz-cf-agent (this project)
