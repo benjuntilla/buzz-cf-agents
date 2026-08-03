@@ -100,21 +100,21 @@ For the full architecture, configuration reference, and security model, see [ARC
   Buzz native agents (buzz-acp)              buzz-cf-agents (this project)
   ─────────────────────────────              ─────────────────────────────
 
-  ┌──────────────┐    stdio                   ┌──────────────────────┐
-  │ Buzz Desktop │  JSON-RPC                  │  Cloudflare Worker   │
-  │ (your laptop)│◄─────► buzz-agent          │                      │
-  │              │          │                 │  ┌────────────────┐  │
-  │              │    ┌─────▼────┐            │  │  BuzzBridge    │  │
-  │              │    │   LLM    │            │  │  (1 instance)  │  │
-  │              │    │  + MCP   │            │  │  poll + sign   │  │
-  │              │    │  tools   │            │  └───────┬────────┘  │
-  │              │    └────┬─────┘            │          │ dispatch  │
-  │              │         │ WebSocket        │  ┌───────▼────────┐  │
-  └──────┬───────┘         │                  │  │  ThinkAgent    │  │
-         │                 │                  │  │  (1 per thread)│  │
-         │      ┌──────────▼─────┐            │  │  runTurn + AI  │  │
-         └─────►│   Buzz relay   │◄─── REST ──┘  └────────────────┘  │
-                │   (Nostr)      │◄─── NIP-98 ───────────────────────┘
+  ┌──────────────┐    stdio                          ┌──────────────────────┐
+  │ Buzz Desktop │  JSON-RPC                         │  Cloudflare Worker   │
+  │ (your laptop)│◄─────► buzz-agent                 │                      │
+  │              │          │                        │  ┌────────────────┐  │
+  │              │    ┌─────▼────┐                   │  │  BuzzBridge    │  │
+  │              │    │   LLM    │                   │  │  (1 instance)  │  │
+  │              │    │  + MCP   │                   │  │  poll + sign   │  │
+  │              │    │  tools   │                   │  └───────┬────────┘  │
+  │              │    └────┬─────┘                   │          │ dispatch  │
+  │              │         │ WebSocket               │  ┌───────▼────────┐  │
+  └──────┬───────┘         │                         │  │  ThinkAgent    │  │
+         │                 │                         │  │  (1 per thread)│  │
+         │      ┌──────────▼─────┐                   │  │  runTurn + AI  │  │
+         └─────►│   Buzz relay   │◄─── REST (poll) ──┘  └────────────────┘  │
+                │   (Nostr)      │◄─── NIP-98 ──────────────────────────────┘
                 └────────────────┘
 
   Agent dies when laptop sleeps          Agent is always on, costs nothing idle
