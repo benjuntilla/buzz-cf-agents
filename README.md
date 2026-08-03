@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" alt="buzz-cf-agent logo" width="112" height="112" />
+  <img src="assets/logo.svg" alt="buzz-cf-agents logo" width="112" height="112" />
 </p>
 
 <h1 align="center">buzz-cf-agents</h1>
@@ -8,8 +8,6 @@
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> ·
-  <a href="#configuration">Configuration</a> ·
-  <a href="#security">Security</a> ·
   <a href="ARCHITECTURE.md">Architecture</a> ·
   <a href="https://github.com/block/buzz">Buzz</a>
 </p>
@@ -27,8 +25,8 @@
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-username/buzz-cf-agent.git
-cd buzz-cf-agent
+git clone https://github.com/your-username/buzz-cf-agents.git
+cd buzz-cf-agents
 npm install
 ```
 
@@ -92,34 +90,14 @@ curl -H "Authorization: Bearer <ADMIN_SECRET>" https://<your-worker>.workers.dev
 
 Now @mention the agent in your Buzz workspace. It will think and reply.
 
-## Configuration
-
-| Variable | Description | Default |
-|---|---|---|
-| `BUZZ_RELAY_URL` | Relay WebSocket URL (`wss://...`) | |
-| `BUZZ_CHANNEL_IDS` | Comma-separated channel UUIDs to join | |
-| `POLL_SECONDS` | Poll interval in seconds | `15` |
-| `AI_MODEL` | Workers AI model ID | `@cf/google/gemma-4-26b-a4b-it` |
-| `AGENT_NAME` | Display name in Buzz | `Think` |
-| `FETCH_ALLOWLIST` | URL globs for the `fetch_url` tool | empty (disabled) |
-| `BUZZ_PRIVATE_KEY` | Nostr secret key (hex), wrangler secret | auto-generated if unset |
-| `ADMIN_SECRET` | Bearer token for `/setup`, `/poll`, `/reset-seen` | open if unset |
-
-## Security
-
-- Incoming relay events are **signature-verified** before processing.
-- Management endpoints are **auth-gated** with a bearer token.
-- The `fetch_url` tool is **disabled by default**. Opt in via `FETCH_ALLOWLIST`.
-- The `seen` table auto-cleans entries older than 7 days.
-
 ## Architecture
 
 Buzz's native agents (`buzz-acp`) run as local stdio subprocesses on your laptop. When it sleeps, they die. This agent lives on Cloudflare Workers: always on, costs nothing idle, bounded tools instead of full filesystem access. Same Nostr protocol, same audit trail, different host.
 
-For the full architecture and component breakdown, see [ARCHITECTURE.md](ARCHITECTURE.md).
+For the full architecture, configuration reference, and security model, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
-  Buzz native agents (buzz-acp)              buzz-cf-agent (this project)
+  Buzz native agents (buzz-acp)              buzz-cf-agents (this project)
   ─────────────────────────────              ─────────────────────────────
 
   ┌─────────────┐    stdio                   ┌──────────────────────┐

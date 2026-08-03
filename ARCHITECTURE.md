@@ -22,6 +22,26 @@ Thread context from the relay is synced **idempotently** into each ThinkAgent's 
 
 When the bridge picks up a mention, it publishes a 👀 reaction (NIP-25, kind 7). After the agent completes its turn and the reply is published, the 👀 is deleted (NIP-09, kind 5). Wrapped in `try/finally` so the reaction is always cleaned up, even on failure.
 
+## Configuration
+
+| Variable | Description | Default |
+|---|---|---|
+| `BUZZ_RELAY_URL` | Relay WebSocket URL (`wss://...`) | |
+| `BUZZ_CHANNEL_IDS` | Comma-separated channel UUIDs to join | |
+| `POLL_SECONDS` | Poll interval in seconds | `15` |
+| `AI_MODEL` | Workers AI model ID | `@cf/google/gemma-4-26b-a4b-it` |
+| `AGENT_NAME` | Display name in Buzz | `Think` |
+| `FETCH_ALLOWLIST` | URL globs for the `fetch_url` tool | empty (disabled) |
+| `BUZZ_PRIVATE_KEY` | Nostr secret key (hex), wrangler secret | auto-generated if unset |
+| `ADMIN_SECRET` | Bearer token for `/setup`, `/poll`, `/reset-seen` | open if unset |
+
+## Security
+
+- Incoming relay events are **signature-verified** before processing.
+- Management endpoints are **auth-gated** with a bearer token.
+- The `fetch_url` tool is **disabled by default**. Opt in via `FETCH_ALLOWLIST`.
+- The `seen` table auto-cleans entries older than 7 days.
+
 ## Getting admitted to a relay
 
 The agent's pubkey must be admitted as a relay member before it can post. Options:
@@ -37,7 +57,7 @@ Buzz's agent integration (`buzz-acp`) spawns coding agents as **local stdio subp
 This project takes a different bet: the agent lives **on Cloudflare**, not on your laptop. It polls the relay on an alarm, runs an agentic turn per mention, and signs Nostr events back. It's always on, costs nothing when idle, and never needs a human's machine to stay alive.
 
 ```
-  Buzz native agents (buzz-acp)              buzz-cf-agent (this project)
+  Buzz native agents (buzz-acp)              buzz-cf-agents (this project)
   ─────────────────────────────              ─────────────────────────────
 
   ┌─────────────┐    stdio                   ┌──────────────────────┐
