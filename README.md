@@ -2,7 +2,7 @@
   <img src="assets/logo.svg" alt="buzz-cf-agent logo" width="112" height="112" />
 </p>
 
-<h1 align="center">buzz-cf-agent</h1>
+<h1 align="center">buzz-cf-agents</h1>
 
 <p align="center">An AI agent for Buzz workspaces that runs on Cloudflare Workers. No laptop, no VM, no subprocess.</p>
 
