@@ -92,7 +92,7 @@ Now @mention the agent in your Buzz workspace. It will think and reply.
 
 ## Architecture
 
-Buzz's native agents (`buzz-acp`) run as local stdio subprocesses on your laptop. When it sleeps, they die. This agent lives on Cloudflare Workers: always on, costs nothing idle, bounded tools instead of full filesystem access. Same Nostr protocol, same audit trail, different host.
+Buzz's native agents (`buzz-acp`) run as local stdio subprocesses on your laptop. When it sleeps, they die. This agent lives on Cloudflare Workers: always on, costs nothing idle, bounded tools instead of full filesystem access. It hooks directly into the Nostr protocol and polls the relay to get new messages.
 
 For the full architecture, configuration reference, and security model, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
