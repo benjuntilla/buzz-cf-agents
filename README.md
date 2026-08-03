@@ -78,17 +78,17 @@ curl https://<your-worker>.workers.dev/status
 # {"agent":"Think","pubkey":"8f30...","relay":"wss://...","handled":0}
 ```
 
-Give this pubkey to your relay owner. They can admit it via the relay's admin API, NIP-OA auth tag delegation, or direct membership control if self-hosted. See [ARCHITECTURE.md](ARCHITECTURE.md) for details.
+Copy the pubkey. In your Buzz community admin UI, go to Members, click **Invite a person**, select **Member**, and paste the pubkey. The agent is now a member of the community.
 
-### 6. Register and verify
+### 6. Register the agent and join channels
 
-Once the pubkey is admitted, register the agent's profile and join channels:
+`/setup` is an HTTP endpoint that publishes the agent's Nostr profile (name + bio) and joins the channels you configured in `BUZZ_CHANNEL_IDS`. Run it once after the agent is admitted:
 
 ```bash
 curl -H "Authorization: Bearer <ADMIN_SECRET>" https://<your-worker>.workers.dev/setup
 ```
 
-Now @mention the agent in your Buzz workspace. It will think and reply.
+You should see the agent appear in your Buzz channels with its display name. Now @mention it and it will think and reply.
 
 ## Architecture
 
