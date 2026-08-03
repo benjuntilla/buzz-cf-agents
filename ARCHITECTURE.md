@@ -7,18 +7,18 @@
 | Bridge | `src/bridge.ts` | Owns the Nostr identity, polls for mentions on an alarm, dispatches to ThinkAgent, signs and publishes replies. Never calls a model. |
 | Agent | `src/session.ts` | One instance per thread root. Runs `runTurn({ mode: "wait" })` with tools and persistent per-thread memory. |
 | Buzz logic | `src/buzz.ts` | Identity, polling, replies, thread context, reactions, seen-event cleanup. |
-| Nostr | `src/nostr.ts` | BIP-340 signing, NIP-98 auth, event building, relay queries, signature verification. No Cloudflare deps — reusable as a standalone package. |
+| Nostr | `src/nostr.ts` | BIP-340 signing, NIP-98 auth, event building, relay queries, signature verification. No Cloudflare deps. Reusable as a standalone package. |
 | Entry | `src/index.ts` | Routes HTTP to BuzzBridge; falls through to `routeAgentRequest`. |
 
 ## Why REST polling instead of WebSocket?
 
-Deployed Workers cannot open WebSockets to Cloudflare-hosted relays (526 on upgrade). Even if they could, outbound WebSockets would pin the Durable Object in memory and defeat hibernation. REST polling via `setAlarm` is the correct design — the bridge sleeps between polls, costing nothing when idle. ThinkAgent instances are lazy, created on first dispatch and only awake to run a turn.
+Deployed Workers cannot open WebSockets to Cloudflare-hosted relays (526 on upgrade). Even if they could, outbound WebSockets would pin the Durable Object in memory and defeat hibernation. REST polling via `setAlarm` is the correct design. The bridge sleeps between polls, costing nothing when idle. ThinkAgent instances are lazy: created on first dispatch, only awake to run a turn.
 
 ## Per-thread memory
 
 Thread context from the relay is synced **idempotently** into each ThinkAgent's persistent transcript via `addMessages`, keyed by Nostr event id. Re-syncing the same messages across polls is a no-op. The agent's own replies are never re-synced. Each thread accumulates durable conversation memory with Think's compaction handling long threads.
 
-## 👀 Reaction status
+## Reaction status
 
 When the bridge picks up a mention, it publishes a 👀 reaction (NIP-25, kind 7). After the agent completes its turn and the reply is published, the 👀 is deleted (NIP-09, kind 5). Wrapped in `try/finally` so the reaction is always cleaned up, even on failure.
 

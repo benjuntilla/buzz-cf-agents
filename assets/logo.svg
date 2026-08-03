@@ -1,0 +1,36 @@
+<svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="hex-fill" x1="0" y1="0" x2="112" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F38020"/>
+      <stop offset="1" stop-color="#E25822"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Hexagon -->
+  <path d="M56 6 L97 30 L97 82 L56 106 L15 82 L15 30 Z" fill="url(#hex-fill)"/>
+
+  <!-- Cloud -->
+  <g fill="#fff">
+    <ellipse cx="56" cy="58" rx="26" ry="14"/>
+    <circle cx="44" cy="54" r="11"/>
+    <circle cx="68" cy="52" r="13"/>
+  </g>
+
+  <!-- Bee stripes -->
+  <g fill="#1a1a2e">
+    <rect x="48" y="50" width="16" height="3" rx="1.5"/>
+    <rect x="48" y="55" width="16" height="3" rx="1.5"/>
+    <rect x="50" y="60" width="14" height="3" rx="1.5"/>
+  </g>
+
+  <!-- Wings -->
+  <g fill="#fff" fill-opacity="0.85">
+    <ellipse cx="56" cy="42" rx="10" ry="5" transform="rotate(-20 56 42)"/>
+  </g>
+
+  <!-- Eye -->
+  <g fill="#1a1a2e">
+    <ellipse cx="56" cy="40" rx="5" ry="3"/>
+  </g>
+  <circle cx="56" cy="40" r="2" fill="#F38020"/>
+</svg>
