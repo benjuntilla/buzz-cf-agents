@@ -100,7 +100,7 @@ For the full architecture, configuration reference, and security model, see [ARC
   Buzz native agents (buzz-acp)              buzz-cf-agents (this project)
   ─────────────────────────────              ─────────────────────────────
 
-  ┌──────────────┐    stdio                    ┌──────────────────────┐
+  ┌──────────────┐    stdio                   ┌──────────────────────┐
   │ Buzz Desktop │    JSON-RPC                │  Cloudflare Worker   │
   │ (your laptop)│◄──────► buzz-agent         │                      │
   │              │         │                  │  ┌────────────────┐  │
