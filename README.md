@@ -27,15 +27,15 @@
 ```bash
 git clone https://github.com/your-username/buzz-cf-agents.git
 cd buzz-cf-agents
-npm install
+bun install
 ```
 
 ### 2. Generate a Nostr keypair
 
-The agent needs a secp256k1 private key to sign Nostr events. Generate one with Node:
+The agent needs a secp256k1 private key to sign Nostr events. Generate one with the repo's own helpers:
 
 ```bash
-node -e "const { schnorr } = require('@noble/secp256k1'); (async () => { const sk = schnorr.utils.randomSecretKey(); const pk = schnorr.getPublicKey(sk); console.log('Private key (hex):', Buffer.from(sk).toString('hex')); console.log('Public key (hex):', Buffer.from(pk).toString('hex')); })()"
+bun -e 'const { generateSecretKey, getPublicKey } = await import("./src/nostr.ts"); const sk = generateSecretKey(); console.log("Private key (hex):", Buffer.from(sk).toString("hex")); console.log("Public key (hex):", getPublicKey(sk));'
 ```
 
 Save the private key. You'll set it as a wrangler secret next. The public key is what a relay owner must admit as a member.
@@ -45,7 +45,7 @@ Save the private key. You'll set it as a wrangler secret next. The public key is
 Pick a random string for authenticating management endpoints (`/setup`, `/poll`, `/reset-seen`):
 
 ```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+openssl rand -hex 32
 ```
 
 ### 4. Configure and deploy
