@@ -4,7 +4,21 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-01",
   "compatibility_flags": ["nodejs_compat"],
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1
+    }
+  },
   "ai": { "binding": "AI", "remote": true },
   "durable_objects": {
     "bindings": [
@@ -16,9 +30,9 @@
     { "tag": "v1", "new_sqlite_classes": ["BuzzBridge", "ThinkAgent"] }
   ],
   "vars": {
-    "BUZZ_RELAY_URL": "wss://your-relay.communities.buzz.xyz",
+    "BUZZ_RELAY_URL": "wss://benjuntilla.communities.buzz.xyz",
     "POLL_SECONDS": "15",
-    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
-    "BUZZ_CHANNEL_IDS": "your-channel-uuid"
+    "AI_MODEL": "@cf/qwen/qwen3.8-27b",
+    "BUZZ_CHANNEL_IDS": "5bb797f1-a506-546f-8fdc-a0cc7406674b"
   }
 }
